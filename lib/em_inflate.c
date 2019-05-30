@@ -599,7 +599,7 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
 
    unsigned char *pCurOutData = pOutData + nOutDataOffset;
    const unsigned char *pOutDataEnd = pCurOutData + nBlockMaxSize;
-   const unsigned char *pOutDataFastEnd = pOutDataEnd - (16 - MIN_MATCH_SIZE);
+   const unsigned char *pOutDataFastEnd = pOutDataEnd - 15;
 
    while (1) {
       em_lsb_bitreader_refill_32(pBitReader);
