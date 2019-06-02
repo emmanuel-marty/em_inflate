@@ -273,6 +273,9 @@ static int em_lsb_huffman_decoder_finalize_table(em_lsb_huffman_decoder_t *pDeco
          if (i >= nSymbols) return -1;
          nRevCodeLengthTable[i] = nCanonicalLength;
 
+         /* Check for malformed table */
+         if (nCanonicalCodeWord >= (1U << nCanonicalLength)) return -1;
+
          /* Write accelerated symbol value + codeword len for the (upside down) top NFASTSYMBOLBITS bits of the codeword, at all bit positions */
          if (nCanonicalLength <= NFASTSYMBOLBITS) {
             unsigned int nRevWord = 0;
@@ -333,16 +336,17 @@ static inline unsigned int em_lsb_huffman_decoder_read_value(em_lsb_huffman_deco
    int nBits = 1;
 
    do {
-      nCodeWord = (nCodeWord << 1) | (nStream & 1);
+      nCodeWord |= (nStream & 1);
 
       unsigned int nTableIndex = pDecoder->nStartIndex[nBits] + nCodeWord;
-      if (nTableIndex < MAX_SYMBOLS) {
+      if (nTableIndex < pDecoder->nSymbols) {
          if (nBits == nRevCodeLengthTable[nTableIndex]) {
             em_lsb_bitreader_consume_bits(pBitReader, nBits);
             return pRevSymbolTable[nTableIndex];
          }
       }
 
+      nCodeWord <<= 1;
       nStream >>= 1;
       nBits++;
    } while (nBits < 16);
@@ -468,7 +472,7 @@ static size_t em_inflate_copy_stored(em_lsb_bitreader_t *pBitReader, unsigned ch
    if (nStoredLen != ((~nNegStoredLen) & 0xffff)) return -1;
 
    /* Make sure there is room */
-   if ((nOutDataOffset + nStoredLen) > nBlockMaxSize) return -1;
+   if (nStoredLen > nBlockMaxSize) return -1;
 
    /* Copy stored data */
    memcpy(pOutData + nOutDataOffset, pBitReader->pInBlock, nStoredLen);
