@@ -493,9 +493,12 @@ static size_t em_inflate_copy_stored(em_lsb_bitreader_t *pBitReader, unsigned ch
 
 /** Base value and number of extra displacement bits for each match length codeword */
 static const unsigned int em_inflate_matchlen_code_base[NMATCHLENSYMS][2] = {
-   { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 }, { 6, 0 }, { 7, 0 }, { 8, 1 }, { 10, 1 },
-   { 12, 1 }, { 14, 1 }, { 16, 2 }, { 20, 2 }, { 24, 2 }, { 28, 2 }, { 32, 3 }, { 40, 3 }, { 48, 3 }, { 56, 3 },
-   { 64, 4 }, { 80, 4 }, { 96, 4 }, { 112, 4 }, { 128, 5 }, { 160, 5 }, { 192, 5 }, { 224, 5 }, { 255, 0 },
+   { MIN_MATCH_SIZE + 0, 0 }, { MIN_MATCH_SIZE + 1, 0 }, { MIN_MATCH_SIZE + 2, 0 }, { MIN_MATCH_SIZE + 3, 0 }, { MIN_MATCH_SIZE + 4, 0 }, 
+   { MIN_MATCH_SIZE + 5, 0 }, { MIN_MATCH_SIZE + 6, 0 }, { MIN_MATCH_SIZE + 7, 0 }, { MIN_MATCH_SIZE + 8, 1 }, { MIN_MATCH_SIZE + 10, 1 },
+   { MIN_MATCH_SIZE + 12, 1 }, { MIN_MATCH_SIZE + 14, 1 }, { MIN_MATCH_SIZE + 16, 2 }, { MIN_MATCH_SIZE + 20, 2 }, { MIN_MATCH_SIZE + 24, 2 }, 
+   { MIN_MATCH_SIZE + 28, 2 }, { MIN_MATCH_SIZE + 32, 3 }, { MIN_MATCH_SIZE + 40, 3 }, { MIN_MATCH_SIZE + 48, 3 }, { MIN_MATCH_SIZE + 56, 3 },
+   { MIN_MATCH_SIZE + 64, 4 }, { MIN_MATCH_SIZE + 80, 4 }, { MIN_MATCH_SIZE + 96, 4 }, { MIN_MATCH_SIZE + 112, 4 }, { MIN_MATCH_SIZE + 128, 5 }, 
+   { MIN_MATCH_SIZE + 160, 5 }, { MIN_MATCH_SIZE + 192, 5 }, { MIN_MATCH_SIZE + 224, 5 }, { MIN_MATCH_SIZE + 255, 0 },
 };
 
 /** Base value and number of extra displacement bits for each offset codeword */
@@ -641,7 +644,6 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
 
          const unsigned char *pSrc = pCurOutData - nMatchOffset;
          if (pSrc >= pOutData) {
-            nMatchLen += MIN_MATCH_SIZE;
             if (nMatchOffset >= 16 && (pCurOutData + nMatchLen) <= pOutDataFastEnd) {
                const unsigned char *pCopySrc = pSrc;
                unsigned char *pCopyDst = pCurOutData;
