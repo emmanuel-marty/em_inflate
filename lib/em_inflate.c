@@ -203,11 +203,11 @@ typedef struct {
  *
  * @return 0 for success, -1 for failure
  */
-static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecoder, unsigned int *pRevSymbolTable, const int nSymbols, const unsigned int *nCodeLength) {
+static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecoder, unsigned int *pRevSymbolTable, const int nReadSymbols, const int nSymbols, const unsigned int *nCodeLength) {
    int nNumSymbolsPerLen[16];
    int i;
 
-   if (nSymbols < 0 || nSymbols > MAX_SYMBOLS)
+   if (nReadSymbols < 0 || nReadSymbols > MAX_SYMBOLS || nSymbols < 0 || nSymbols > MAX_SYMBOLS || nReadSymbols > nSymbols)
       return -1;
    pDecoder->nSymbols = nSymbols;
 
@@ -215,7 +215,7 @@ static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecod
 
    for (i = 0; i < 16; i++)
       nNumSymbolsPerLen[i] = 0;
-   for (i = 0; i < nSymbols; i++) {
+   for (i = 0; i < nReadSymbols; i++) {
       if (nCodeLength[i] >= 16) return -1;
       nNumSymbolsPerLen[nCodeLength[i]]++;
    }
@@ -232,7 +232,7 @@ static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecod
    for (i = 0; i < nSymbols; i++)
       pRevSymbolTable[i] = -1;
 
-   for (i = 0; i < nSymbols; i++) {
+   for (i = 0; i < nReadSymbols; i++) {
       if (nCodeLength[i]) {
          pRevSymbolTable[pDecoder->nStartingPos[nCodeLength[i]]++] = i;
       }
@@ -384,7 +384,7 @@ static int em_lsb_huffman_decoder_read_raw_table(em_lsb_huffman_decoder_t *pDeco
       nCodeLength[nCodeLenSymIndex[i++]] = 0;
    }
 
-   return em_lsb_huffman_decoder_prepare_table(pDecoder, pRevSymbolTable, nSymbols, nCodeLength);
+   return em_lsb_huffman_decoder_prepare_table(pDecoder, pRevSymbolTable, nSymbols, nSymbols, nCodeLength);
 }
 
 /**
@@ -555,9 +555,9 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
       /* Use code lengths table to read literals/match len and offset tables */
       if (em_lsb_huffman_decoder_read_lengths(&tablesDecoder, nTablesRevSymbolTable, nLiteralSyms + nOffsetSyms /* read symbols */, NLITERALSYMS + NOFFSETSYMS /* total symbols */, nCodeLength, pBitReader) < 0)
          return -1;
-      if (em_lsb_huffman_decoder_prepare_table(&literalsDecoder, nLiteralsRevSymbolTable, nLiteralSyms, nCodeLength) < 0)
+      if (em_lsb_huffman_decoder_prepare_table(&literalsDecoder, nLiteralsRevSymbolTable, nLiteralSyms, NLITERALSYMS, nCodeLength) < 0)
          return -1;
-      if (em_lsb_huffman_decoder_prepare_table(&offsetDecoder, nOffsetRevSymbolTable, nOffsetSyms, nCodeLength + nLiteralSyms) < 0)
+      if (em_lsb_huffman_decoder_prepare_table(&offsetDecoder, nOffsetRevSymbolTable, nOffsetSyms, NOFFSETSYMS, nCodeLength + nLiteralSyms) < 0)
          return -1;
    }
    else {
@@ -578,9 +578,9 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
       for (i = 0; i < NOFFSETSYMS; i++)
          nFixedOffsetCodeLen[i] = 5;
 
-      if (em_lsb_huffman_decoder_prepare_table(&literalsDecoder, nLiteralsRevSymbolTable, NLITERALSYMS, nFixedLiteralCodeLen) < 0)
+      if (em_lsb_huffman_decoder_prepare_table(&literalsDecoder, nLiteralsRevSymbolTable, NLITERALSYMS, NLITERALSYMS, nFixedLiteralCodeLen) < 0)
          return -1;
-      if (em_lsb_huffman_decoder_prepare_table(&offsetDecoder, nOffsetRevSymbolTable, NOFFSETSYMS, nFixedOffsetCodeLen) < 0)
+      if (em_lsb_huffman_decoder_prepare_table(&offsetDecoder, nOffsetRevSymbolTable, NOFFSETSYMS, NOFFSETSYMS, nFixedOffsetCodeLen) < 0)
          return -1;
    }
 
