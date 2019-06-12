@@ -1,9 +1,11 @@
-em_inflate -- Fast, in-memory, single file decompressor for gzip and zlib
-=========================================================================
+em_inflate -- Fast, in-memory, single file decompressor for zlib, deflate and gzip
+==================================================================================
 
-em_inflate is a one-file, single function call, memory-to-memory decompressor for the gzip and zlib bitstream formats:
+em_inflate is a one-file, single function call, memory-to-memory decompressor for the zlib, deflate and gzip bitstream formats:
 
 [RFC 1950: ZLIB specification](https://www.ietf.org/rfc/rfc1950.txt)
+
+[RFC 1951: DEFLATE specification](https://www.ietf.org/rfc/rfc1951.txt)
 
 [RFC 1952: GZIP specification](https://www.ietf.org/rfc/rfc1952.txt)
 

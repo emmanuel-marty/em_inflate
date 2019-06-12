@@ -278,15 +278,14 @@ static int em_lsb_huffman_decoder_finalize_table(em_lsb_huffman_decoder_t *pDeco
 
          /* Write accelerated symbol value + codeword len for the (upside down) top NFASTSYMBOLBITS bits of the codeword, at all bit positions */
          if (nCanonicalLength <= NFASTSYMBOLBITS) {
-            unsigned int nRevWord = 0;
-            int j;
-            int nRevBits = nCanonicalLength;
+            unsigned int nRevWord;
 
-            /* Get upside down codeword */
-            for (j = 0; j < nRevBits; j++) {
-               if (nCanonicalCodeWord & (1 << (nRevBits - 1 - j)))
-                  nRevWord |= (1 << j);
-            }
+            /* Get upside down codeword (branchless method by Eric Biggers) */
+            nRevWord = ((nCanonicalCodeWord & 0x5555) << 1) | ((nCanonicalCodeWord & 0xaaaa) >> 1);
+            nRevWord = ((nRevWord & 0x3333) << 2) | ((nRevWord & 0xcccc) >> 2);
+            nRevWord = ((nRevWord & 0x0f0f) << 4) | ((nRevWord & 0xf0f0) >> 4);
+            nRevWord = ((nRevWord & 0x00ff) << 8) | ((nRevWord & 0xff00) >> 8);
+            nRevWord = nRevWord >> (16 - nCanonicalLength);
 
             int nSlots = 1 << (NFASTSYMBOLBITS - nCanonicalLength);
             while (nSlots) {
