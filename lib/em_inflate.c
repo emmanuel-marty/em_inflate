@@ -199,11 +199,11 @@ typedef struct {
  *
  * @param pDecoder decoding context
  * @param pRevSymbolTable array of 2 * nSymbols entries for storing the reverse lookup table
- * @param nCodeLength codeword lengths table
+ * @param pCodeLength codeword lengths table
  *
  * @return 0 for success, -1 for failure
  */
-static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecoder, unsigned int *pRevSymbolTable, const int nReadSymbols, const int nSymbols, const unsigned int *nCodeLength) {
+static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecoder, unsigned int *pRevSymbolTable, const int nReadSymbols, const int nSymbols, const unsigned char *pCodeLength) {
    int nNumSymbolsPerLen[16];
    int i;
 
@@ -216,8 +216,8 @@ static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecod
    for (i = 0; i < 16; i++)
       nNumSymbolsPerLen[i] = 0;
    for (i = 0; i < nReadSymbols; i++) {
-      if (nCodeLength[i] >= 16) return -1;
-      nNumSymbolsPerLen[nCodeLength[i]]++;
+      if (pCodeLength[i] >= 16) return -1;
+      nNumSymbolsPerLen[pCodeLength[i]]++;
    }
 
    pDecoder->nStartingPos[0] = 0;
@@ -233,8 +233,8 @@ static int em_lsb_huffman_decoder_prepare_table(em_lsb_huffman_decoder_t *pDecod
       pRevSymbolTable[i] = -1;
 
    for (i = 0; i < nReadSymbols; i++) {
-      if (nCodeLength[i]) {
-         pRevSymbolTable[pDecoder->nStartingPos[nCodeLength[i]]++] = i;
+      if (pCodeLength[i]) {
+         pRevSymbolTable[pDecoder->nStartingPos[pCodeLength[i]]++] = i;
       }
    }
 
@@ -353,19 +353,18 @@ static inline unsigned int em_lsb_huffman_decoder_read_value(em_lsb_huffman_deco
 }
 
 /**
- * Decode huffman table using fixed code length bit sizes
+ * Read fixed bit size code lengths
  *
- * @param pDecoder decoding context to read table for
- * @param pRevSymbolTable array of 2 * nSymbols entries for storing the reverse lookup table
  * @param nLenBits number of bits per code length
+ * @param nReadSymbols number of symbols actually read
  * @param nSymbols number of symbols to build codes for
+ * @param pCodeLength output code lengths table
  * @param pBitReader bit reader context
  *
  * @return 0 for success, -1 for failure
  */
-static int em_lsb_huffman_decoder_read_raw_table(em_lsb_huffman_decoder_t *pDecoder, unsigned int *pRevSymbolTable, const int nLenBits, const int nReadSymbols, const int nSymbols, em_lsb_bitreader_t *pBitReader) {
+static int em_lsb_huffman_decoder_read_raw_lengths(const int nLenBits, const int nReadSymbols, const int nSymbols, unsigned char *pCodeLength, em_lsb_bitreader_t *pBitReader) {
    static const unsigned short nCodeLenSymIndex[NCODELENSYMS] = { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };  /* Order in which code lengths are stored, as per the zlib specification */
-   unsigned int nCodeLength[MAX_SYMBOLS];
    int i;
 
    if (nReadSymbols < 0 || nReadSymbols > MAX_SYMBOLS || nSymbols < 0 || nSymbols > MAX_SYMBOLS || nReadSymbols > nSymbols)
@@ -376,30 +375,30 @@ static int em_lsb_huffman_decoder_read_raw_table(em_lsb_huffman_decoder_t *pDeco
       unsigned int nLength = em_lsb_bitreader_get_bits(pBitReader, nLenBits);
       if (nLength == -1) return -1;
 
-      nCodeLength[nCodeLenSymIndex[i++]] = nLength;
+      pCodeLength[nCodeLenSymIndex[i++]] = nLength;
    }
 
    while (i < nSymbols) {
-      nCodeLength[nCodeLenSymIndex[i++]] = 0;
+      pCodeLength[nCodeLenSymIndex[i++]] = 0;
    }
 
-   return em_lsb_huffman_decoder_prepare_table(pDecoder, pRevSymbolTable, nSymbols, nSymbols, nCodeLength);
+   return 0;
 }
 
 /**
- * Decode code lengths table using another huffman table
+ * Read huffman-encoded code lengths
  *
  * @param pTablesDecoder decoding context for code lengths
  * @param pTablesRevSymbolTable reverse lookup table for code lengths
  * @param nReadSymbols number of symbols actually read
  * @param nSymbols number of symbols to build codes for
- * @param nCodeLength output code lenghts tablee
+ * @param pCodeLength output code lengths table
  * @param pBitReader bit reader context
  *
  * @return 0 for success, -1 for failure
  */
-static int em_lsb_huffman_decoder_read_lengths(em_lsb_huffman_decoder_t *pTablesDecoder, const unsigned int *pTablesRevSymbolTable,
-                                               const int nReadSymbols, const int nSymbols, unsigned int *nCodeLength, em_lsb_bitreader_t *pBitReader) {
+static int em_lsb_huffman_decoder_read_var_lengths(em_lsb_huffman_decoder_t *pTablesDecoder, const unsigned int *pTablesRevSymbolTable,
+                                                   const int nReadSymbols, const int nSymbols, unsigned char *pCodeLength, em_lsb_bitreader_t *pBitReader) {
    int i;
 
    if (nReadSymbols < 0 || nSymbols < 0 || nReadSymbols > nSymbols)
@@ -414,7 +413,7 @@ static int em_lsb_huffman_decoder_read_lengths(em_lsb_huffman_decoder_t *pTables
 
       if (nLength < 16) {
          nPrevLength = nLength;
-         nCodeLength[i++] = nPrevLength;
+         pCodeLength[i++] = nPrevLength;
       }
       else {
          unsigned int nRunLen = 0;
@@ -438,14 +437,14 @@ static int em_lsb_huffman_decoder_read_lengths(em_lsb_huffman_decoder_t *pTables
          }
 
          while (nRunLen && i < nReadSymbols) {
-            nCodeLength[i++] = nPrevLength;
+            pCodeLength[i++] = nPrevLength;
             nRunLen--;
          }
       }
    }
 
    while (i < nSymbols)
-      nCodeLength[i++] = 0;
+      pCodeLength[i++] = 0;
    return 0;
 }
 
@@ -526,7 +525,7 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
 
    if (nDynamicBlock) {
       em_lsb_huffman_decoder_t tablesDecoder;
-      unsigned int nCodeLength[NLITERALSYMS + NOFFSETSYMS];
+      unsigned char nCodeLength[NLITERALSYMS + NOFFSETSYMS];
       unsigned int nTablesRevSymbolTable[NCODELENSYMS * 2];
 
       /* Read the encoded number of literals/match len symbols, offset symbols, and code length symbols */
@@ -546,13 +545,15 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
       if (nCodeLenSyms > NCODELENSYMS) return -1;
 
       /* Read code lengths table */
-      if (em_lsb_huffman_decoder_read_raw_table(&tablesDecoder, nTablesRevSymbolTable, NCODELENBITS /* code length bits */, nCodeLenSyms /* symbols */, NCODELENSYMS, pBitReader) < 0)
+      if (em_lsb_huffman_decoder_read_raw_lengths(NCODELENBITS /* code length bits */, nCodeLenSyms /* symbols */, NCODELENSYMS, nCodeLength, pBitReader) < 0)
+         return -1;
+      if (em_lsb_huffman_decoder_prepare_table(&tablesDecoder, nTablesRevSymbolTable, NCODELENSYMS, NCODELENSYMS, nCodeLength) < 0)
          return -1;
       if (em_lsb_huffman_decoder_finalize_table(&tablesDecoder, nTablesRevSymbolTable) < 0)
          return -1;
 
       /* Use code lengths table to read literals/match len and offset tables */
-      if (em_lsb_huffman_decoder_read_lengths(&tablesDecoder, nTablesRevSymbolTable, nLiteralSyms + nOffsetSyms /* read symbols */, NLITERALSYMS + NOFFSETSYMS /* total symbols */, nCodeLength, pBitReader) < 0)
+      if (em_lsb_huffman_decoder_read_var_lengths(&tablesDecoder, nTablesRevSymbolTable, nLiteralSyms + nOffsetSyms /* read symbols */, NLITERALSYMS + NOFFSETSYMS /* total symbols */, nCodeLength, pBitReader) < 0)
          return -1;
       if (em_lsb_huffman_decoder_prepare_table(&literalsDecoder, nLiteralsRevSymbolTable, nLiteralSyms, NLITERALSYMS, nCodeLength) < 0)
          return -1;
@@ -560,8 +561,8 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
          return -1;
    }
    else {
-      unsigned int nFixedLiteralCodeLen[NLITERALSYMS];
-      unsigned int nFixedOffsetCodeLen[NOFFSETSYMS];
+      unsigned char nFixedLiteralCodeLen[NLITERALSYMS];
+      unsigned char nFixedOffsetCodeLen[NOFFSETSYMS];
 
       /* Fixed huffman codes for this block. Build fixed code lengths for literals/match lens and offsets, as per the zlib specification */
 
