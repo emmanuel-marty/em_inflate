@@ -256,7 +256,7 @@ static int em_lsb_huffman_decoder_finalize_table(em_lsb_huffman_decoder_t *pDeco
    int nCanonicalLength = 1;
    int i;
 
-   /* Re-create canonical huffman codewords and create left-justified words for lzwide_huffman_decoder_read_value() */
+   /* Re-create canonical huffman codewords and create left-justified words for em_lsb_huffman_decoder_read_value() */
 
    for (i = 0; i < (1 << NFASTSYMBOLBITS); i++)
       pDecoder->nFastSymbol[i] = 0;
@@ -364,7 +364,7 @@ static inline unsigned int em_lsb_huffman_decoder_read_value(em_lsb_huffman_deco
  * @return 0 for success, -1 for failure
  */
 static int em_lsb_huffman_decoder_read_raw_lengths(const int nLenBits, const int nReadSymbols, const int nSymbols, unsigned char *pCodeLength, em_lsb_bitreader_t *pBitReader) {
-   static const unsigned short nCodeLenSymIndex[NCODELENSYMS] = { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };  /* Order in which code lengths are stored, as per the zlib specification */
+   static const unsigned char nCodeLenSymIndex[NCODELENSYMS] = { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };  /* Order in which code lengths are stored, as per the zlib specification */
    int i;
 
    if (nReadSymbols < 0 || nReadSymbols > MAX_SYMBOLS || nSymbols < 0 || nSymbols > MAX_SYMBOLS || nReadSymbols > nSymbols)
@@ -486,22 +486,24 @@ static size_t em_inflate_copy_stored(em_lsb_bitreader_t *pBitReader, unsigned ch
 #define NMATCHLENSYMS 29
 #define NOFFSETSYMS 32
 #define MIN_MATCH_SIZE  3
+#define MATCHLEN_PAIR(__base,__dispbits) ((__base) | ((__dispbits) << 16) | 0x8000)
+#define OFFSET_PAIR(__base,__dispbits) ((__base) | ((__dispbits) << 16))
 
 /** Base value and number of extra displacement bits for each match length codeword */
-static const unsigned int em_inflate_matchlen_code_base[NMATCHLENSYMS][2] = {
-   { MIN_MATCH_SIZE + 0, 0 }, { MIN_MATCH_SIZE + 1, 0 }, { MIN_MATCH_SIZE + 2, 0 }, { MIN_MATCH_SIZE + 3, 0 }, { MIN_MATCH_SIZE + 4, 0 }, 
-   { MIN_MATCH_SIZE + 5, 0 }, { MIN_MATCH_SIZE + 6, 0 }, { MIN_MATCH_SIZE + 7, 0 }, { MIN_MATCH_SIZE + 8, 1 }, { MIN_MATCH_SIZE + 10, 1 },
-   { MIN_MATCH_SIZE + 12, 1 }, { MIN_MATCH_SIZE + 14, 1 }, { MIN_MATCH_SIZE + 16, 2 }, { MIN_MATCH_SIZE + 20, 2 }, { MIN_MATCH_SIZE + 24, 2 }, 
-   { MIN_MATCH_SIZE + 28, 2 }, { MIN_MATCH_SIZE + 32, 3 }, { MIN_MATCH_SIZE + 40, 3 }, { MIN_MATCH_SIZE + 48, 3 }, { MIN_MATCH_SIZE + 56, 3 },
-   { MIN_MATCH_SIZE + 64, 4 }, { MIN_MATCH_SIZE + 80, 4 }, { MIN_MATCH_SIZE + 96, 4 }, { MIN_MATCH_SIZE + 112, 4 }, { MIN_MATCH_SIZE + 128, 5 }, 
-   { MIN_MATCH_SIZE + 160, 5 }, { MIN_MATCH_SIZE + 192, 5 }, { MIN_MATCH_SIZE + 224, 5 }, { MIN_MATCH_SIZE + 255, 0 },
+static const unsigned int em_inflate_matchlen_code[NMATCHLENSYMS] = {
+   MATCHLEN_PAIR(MIN_MATCH_SIZE + 0, 0), MATCHLEN_PAIR(MIN_MATCH_SIZE + 1, 0), MATCHLEN_PAIR(MIN_MATCH_SIZE + 2, 0), MATCHLEN_PAIR(MIN_MATCH_SIZE + 3, 0), MATCHLEN_PAIR(MIN_MATCH_SIZE + 4, 0), 
+   MATCHLEN_PAIR(MIN_MATCH_SIZE + 5, 0), MATCHLEN_PAIR(MIN_MATCH_SIZE + 6, 0), MATCHLEN_PAIR(MIN_MATCH_SIZE + 7, 0), MATCHLEN_PAIR(MIN_MATCH_SIZE + 8, 1), MATCHLEN_PAIR(MIN_MATCH_SIZE + 10, 1),
+   MATCHLEN_PAIR(MIN_MATCH_SIZE + 12, 1), MATCHLEN_PAIR(MIN_MATCH_SIZE + 14, 1), MATCHLEN_PAIR(MIN_MATCH_SIZE + 16, 2), MATCHLEN_PAIR(MIN_MATCH_SIZE + 20, 2), MATCHLEN_PAIR(MIN_MATCH_SIZE + 24, 2), 
+   MATCHLEN_PAIR(MIN_MATCH_SIZE + 28, 2), MATCHLEN_PAIR(MIN_MATCH_SIZE + 32, 3), MATCHLEN_PAIR(MIN_MATCH_SIZE + 40, 3), MATCHLEN_PAIR(MIN_MATCH_SIZE + 48, 3), MATCHLEN_PAIR(MIN_MATCH_SIZE + 56, 3),
+   MATCHLEN_PAIR(MIN_MATCH_SIZE + 64, 4), MATCHLEN_PAIR(MIN_MATCH_SIZE + 80, 4), MATCHLEN_PAIR(MIN_MATCH_SIZE + 96, 4), MATCHLEN_PAIR(MIN_MATCH_SIZE + 112, 4), MATCHLEN_PAIR(MIN_MATCH_SIZE + 128, 5), 
+   MATCHLEN_PAIR(MIN_MATCH_SIZE + 160, 5), MATCHLEN_PAIR(MIN_MATCH_SIZE + 192, 5), MATCHLEN_PAIR(MIN_MATCH_SIZE + 224, 5), MATCHLEN_PAIR(MIN_MATCH_SIZE + 255, 0),
 };
 
 /** Base value and number of extra displacement bits for each offset codeword */
-static const unsigned int em_inflate_offset_code_base[NOFFSETSYMS][2] = {
-   { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 1 }, { 7, 1 }, { 9, 2 }, { 13, 2 }, { 17, 3 }, { 25, 3 },
-   { 33, 4 }, { 49, 4 }, { 65, 5 }, { 97, 5 }, { 129, 6 }, { 193, 6 }, { 257, 7 }, { 385, 7 }, { 513, 8 }, { 769, 8 },
-   { 1025, 9 }, { 1537, 9 }, { 2049, 10 }, { 3073, 10 }, { 4097, 11 }, { 6145, 11 }, { 8193, 12 }, { 12289, 12 }, { 16385, 13 }, { 24577, 13 },
+static const unsigned int em_inflate_offset_code[NOFFSETSYMS] = {
+   OFFSET_PAIR(1, 0), OFFSET_PAIR(2, 0), OFFSET_PAIR(3, 0), OFFSET_PAIR(4, 0), OFFSET_PAIR(5, 1), OFFSET_PAIR(7, 1), OFFSET_PAIR(9, 2), OFFSET_PAIR(13, 2), OFFSET_PAIR(17, 3), OFFSET_PAIR(25, 3),
+   OFFSET_PAIR(33, 4), OFFSET_PAIR(49, 4), OFFSET_PAIR(65, 5), OFFSET_PAIR(97, 5), OFFSET_PAIR(129, 6), OFFSET_PAIR(193, 6), OFFSET_PAIR(257, 7), OFFSET_PAIR(385, 7), OFFSET_PAIR(513, 8), OFFSET_PAIR(769, 8),
+   OFFSET_PAIR(1025, 9), OFFSET_PAIR(1537, 9), OFFSET_PAIR(2049, 10), OFFSET_PAIR(3073, 10), OFFSET_PAIR(4097, 11), OFFSET_PAIR(6145, 11), OFFSET_PAIR(8193, 12), OFFSET_PAIR(12289, 12), OFFSET_PAIR(16385, 13), OFFSET_PAIR(24577, 13),
 };
 
 /**
@@ -588,7 +590,7 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
    for (i = 0; i < NOFFSETSYMS; i++) {
       unsigned int n = nOffsetRevSymbolTable[i];
       if (n < NOFFSETSYMS) {
-         nOffsetRevSymbolTable[i] = (em_inflate_offset_code_base[n][0] & 0xffff) | (em_inflate_offset_code_base[n][1] << 16);
+         nOffsetRevSymbolTable[i] = em_inflate_offset_code[n];
       }
    }
 
@@ -596,7 +598,7 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
    for (i = 0; i < NLITERALSYMS; i++) {
       unsigned int n = nLiteralsRevSymbolTable[i];
       if (n >= NMATCHLENSYMSTART && n < NLITERALSYMS) {
-         nLiteralsRevSymbolTable[i] = (em_inflate_matchlen_code_base[n - NMATCHLENSYMSTART][0] & 0x7fff) | (em_inflate_matchlen_code_base[n - NMATCHLENSYMSTART][1] << 16) | 0x8000;
+         nLiteralsRevSymbolTable[i] = em_inflate_matchlen_code[n - NMATCHLENSYMSTART];
       }
    }
 
