@@ -598,7 +598,12 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
    for (i = 0; i < NLITERALSYMS; i++) {
       unsigned int n = nLiteralsRevSymbolTable[i];
       if (n >= NMATCHLENSYMSTART && n < NLITERALSYMS) {
-         nLiteralsRevSymbolTable[i] = em_inflate_matchlen_code[n - NMATCHLENSYMSTART];
+        int index = n - NMATCHLENSYMSTART;
+        if (index >= 0 && index < NMATCHLENSYMS) {
+            nLiteralsRevSymbolTable[i] = em_inflate_matchlen_code[index];
+        } else {
+            return -1;
+        }      
       }
    }
 
