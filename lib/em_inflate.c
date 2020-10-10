@@ -598,12 +598,19 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
    for (i = 0; i < NLITERALSYMS; i++) {
       unsigned int n = nLiteralsRevSymbolTable[i];
       if (n >= NMATCHLENSYMSTART && n < NLITERALSYMS) {
-        int index = n - NMATCHLENSYMSTART;
-        if (index >= 0 && index < NMATCHLENSYMS) {
+         int index = n - NMATCHLENSYMSTART;
+         if (index >= 0 && index < NMATCHLENSYMS) {
             nLiteralsRevSymbolTable[i] = em_inflate_matchlen_code[index];
-        } else {
-            return -1;
-        }      
+         }
+         else {
+            if (n < NLITERALSYMS) {
+               /* Handle 287 and 288 codes, used for constructing a complete canonical tree, present in static huffman tables but not used */
+               nLiteralsRevSymbolTable[i] = 0;
+            }
+            else {
+               return -1;
+            }
+         }
       }
    }
 
