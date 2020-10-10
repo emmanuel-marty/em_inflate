@@ -604,7 +604,7 @@ static size_t em_inflate_decompress_block(em_lsb_bitreader_t *pBitReader, int nD
          }
          else {
             if (n < NLITERALSYMS) {
-               /* Handle 287 and 288 codes, used for constructing a complete canonical tree, present in static huffman tables but not used */
+               /* Handle 286 and 287 codes, used for constructing a complete canonical tree, present in static huffman tables but not used */
                nLiteralsRevSymbolTable[i] = 0;
             }
             else {
