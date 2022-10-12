@@ -1162,7 +1162,7 @@ size_t em_inflate(const void *pCompressedData, size_t nCompressedDataSize, unsig
       nStoredCheckSum |= ((unsigned int)pCurCompressedData[2]) << 16;
       nStoredCheckSum |= ((unsigned int)pCurCompressedData[3]) << 24;
       if (nStoredCheckSum != nCheckSum) return -1;
-      pCurCompressedData += 4;
+      /* pCurCompressedData += 4; */
       break;
 
    case EM_INFLATE_CHECKSUM_ZLIB:   /* zlib - big endian adler32 */
@@ -1172,7 +1172,7 @@ size_t em_inflate(const void *pCompressedData, size_t nCompressedDataSize, unsig
       nStoredCheckSum |= ((unsigned int)pCurCompressedData[2]) << 8;
       nStoredCheckSum |= ((unsigned int)pCurCompressedData[3]);
       if (nStoredCheckSum != nCheckSum) return -1;
-      pCurCompressedData += 4;
+      /* pCurCompressedData += 4; */
       break;
 
    default: /* None */
