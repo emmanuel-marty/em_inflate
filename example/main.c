@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
    pCompressedData = (unsigned char*)malloc(nCompressedDataSize);
    if (!pCompressedData) {
       fclose(f);
-      fprintf(stderr, "out of memory, %zd bytes needed\n", nCompressedDataSize);
+      fprintf(stderr, "out of memory, %zu bytes needed\n", nCompressedDataSize);
       return 100;
    }
 
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
    nMaxOutDataSize = 200000000;
    pOutData = (unsigned char*)malloc(nMaxOutDataSize);
    if (!pOutData) {
-      fprintf(stderr, "out of memory, %zd bytes needed\n", nMaxOutDataSize);
+      fprintf(stderr, "out of memory, %zu bytes needed\n", nMaxOutDataSize);
       free(pCompressedData);
       return 100;
    }
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
       return 100;
    }
 
-   fprintf(stdout, "decompressed %zd bytes\n", nActualOutDataSize);
+   fprintf(stdout, "decompressed %zu bytes\n", nActualOutDataSize);
 
    /* Write decompressed file out all at once */
 
